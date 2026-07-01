@@ -37,4 +37,10 @@ describe("createTestClients", () => {
     const { account, publicClient } = await createTestClients({ miningConfig: { type: "auto" } });
     expect(await publicClient.getBalance({ address: account.address })).toBeGreaterThan(0n);
   });
+
+  it("provides a fresh in-memory store so deploys never touch disk", async () => {
+    const { store } = await createTestClients();
+    expect(await store.read("anynet", "Anything")).toBeNull();
+    expect(await store.list("anynet")).toEqual([]);
+  });
 });

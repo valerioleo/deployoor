@@ -1,6 +1,7 @@
 import { createMemoryClient, PREFUNDED_ACCOUNTS } from "tevm";
 import { createWalletClient, createPublicClient, custom } from "viem";
 import type { Account, Chain, PublicClient, WalletClient } from "viem";
+import { memoryStore, type StoreAdapter } from "deployoor";
 
 /**
  * Options for the in-memory EVM, passed straight through to tevm's `createMemoryClient`
@@ -26,6 +27,12 @@ export interface TestClients {
    * `const alice = walletClientFor(accounts[1])`.
    */
   readonly walletClientFor: (account: Account) => WalletClient;
+  /**
+   * A fresh **in-memory** deployment store. Spread it into deploy calls
+   * (`getOrDeployToken({ ...clients, args })`) so deploys never touch disk and vanish
+   * with the test — no stale `deployments/` files, no cross-run reuse.
+   */
+  readonly store: StoreAdapter;
 }
 
 /**
@@ -34,12 +41,14 @@ export interface TestClients {
  * straight to a generated deployer:
  *
  * ```ts
- * const { walletClient, publicClient } = await createTestClients();
- * const token = await getOrDeployToken({ walletClient, publicClient, args: [owner] });
+ * const clients = await createTestClients();
+ * // spread `clients` so deploys use the in-memory `store` — nothing hits disk
+ * const token = await getOrDeployToken({ ...clients, args: [owner] });
  * ```
  *
- * For multiple interacting addresses, use `accounts` + `walletClientFor`; pass tevm
- * options (fork, mining, …) via the argument.
+ * Deploys go to an in-memory `store` that's discarded when the test ends (no
+ * `deployments/` files, no cross-run reuse). For multiple interacting addresses use
+ * `accounts` + `walletClientFor`; pass tevm options (fork, mining, …) via the argument.
  *
  * The return type is annotated with viem's portable client types on purpose: the
  * inferred tevm chain type pulls in `@ethereumjs/common`, which isn't nameable across
@@ -67,5 +76,6 @@ export const createTestClients = async (options?: CreateTestClientsOptions): Pro
     walletClient: walletClientFor(account),
     publicClient: createPublicClient({ chain, transport }),
     walletClientFor,
+    store: memoryStore(),
   };
 };

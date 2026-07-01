@@ -106,6 +106,8 @@ export interface DeployerCallOptions<A extends Abi, P extends readonly AnyDeploy
   readonly libraries?: Libraries;
   readonly plugins?: PluginOverrides<P>;
   readonly onPluginError?: OnPluginError;
+  /** Override the store (default: fsStore at the config's deploymentsPath). Pass an in-memory store for tests. */
+  readonly store?: StoreAdapter;
 }
 
 /**
@@ -127,7 +129,7 @@ export const defineDeployer = <A extends Abi, const P extends readonly AnyDeploy
     createDeployer({
       walletClient: opts.walletClient,
       publicClient: opts.publicClient,
-      store,
+      store: opts.store ?? store,
       plugins: config.plugins,
       onPluginError: config.onPluginError,
     }).getOrDeploy(artifact, {
@@ -147,6 +149,8 @@ export interface RegisterCallOptions<A extends Abi> {
   readonly name: string;
   readonly address: Address;
   readonly abi: A;
+  /** Override the store (default: fsStore at the config's deploymentsPath). */
+  readonly store?: StoreAdapter;
 }
 
 /**
@@ -162,7 +166,7 @@ export const defineRegister = <const P extends readonly AnyDeployPlugin[]>(confi
     createDeployer({
       walletClient: opts.walletClient,
       publicClient: opts.publicClient,
-      store,
+      store: opts.store ?? store,
       plugins: config.plugins,
       onPluginError: config.onPluginError,
     }).register({ name: opts.name, address: opts.address, abi: opts.abi });
@@ -173,6 +177,8 @@ export interface ResetCallOptions {
   readonly publicClient: PublicClient;
   /** Forget just this deployment; omit to forget every deployment on the client's chain. */
   readonly name?: string;
+  /** Override the store (default: fsStore at the config's deploymentsPath). */
+  readonly store?: StoreAdapter;
 }
 
 /**
@@ -186,12 +192,13 @@ export const defineReset = <const P extends readonly AnyDeployPlugin[]>(config: 
   return async (opts: ResetCallOptions): Promise<void> => {
     const chain = opts.publicClient.chain;
     if (chain === undefined) throw new NoChainOnClient();
+    const active = opts.store ?? store;
     const network = chain.name.toLowerCase();
     if (opts.name === undefined) {
-      const all = await store.list(network);
-      await Promise.all(all.map((r) => store.remove(network, r.deploymentName)));
+      const all = await active.list(network);
+      await Promise.all(all.map((r) => active.remove(network, r.deploymentName)));
     } else {
-      await store.remove(network, opts.name);
+      await active.remove(network, opts.name);
     }
   };
 };

@@ -99,34 +99,27 @@ Deploy more contracts, or to more networks, and you get `deployments/sepolia/Vau
 
 ## Testing
 
-The generated deployers are just functions that take viem clients, so a test deploys exactly like production — point the clients at an in-memory EVM ([tevm](https://tevm.sh)) and use any runner (vitest, `node:test`). No Hardhat test environment, no local node.
+The generated deployers are just functions that take viem clients, so a test deploys exactly like production. [`@deployoor/testing`](packages/deployoor-testing)'s `createTestClients()` boots an in-memory EVM ([tevm](https://tevm.sh)) as viem clients **and an in-memory store** — no Hardhat test environment, no local node, and deploys never touch disk. Use any runner (vitest, `node:test`).
 
 ```ts
 // token.test.ts — a smart-contract test in vitest. No Hardhat, no local node.
 import { test, expect } from "vitest";
-import { createMemoryClient, PREFUNDED_ACCOUNTS } from "tevm";
-import { createWalletClient, createPublicClient, custom } from "viem";
+import { createTestClients } from "@deployoor/testing";
 import { getOrDeployToken } from "../deployers";
 
 test("transfer moves the balance", async () => {
-  const memory = createMemoryClient({ miningConfig: { type: "auto" } }); // a real EVM, in process
-  await memory.tevmReady();
-  const [deployer, bob] = PREFUNDED_ACCOUNTS;
-  const transport = custom(memory);
-  const clients = {
-    walletClient: createWalletClient({ account: deployer, chain: memory.chain, transport }),
-    publicClient: createPublicClient({ chain: memory.chain, transport }),
-  };
+  const clients = await createTestClients(); // a real EVM in-process + an in-memory store
+  const [deployer, bob] = clients.accounts; // prefunded accounts
 
-  // the SAME getOrDeploy you run in production — it only needs viem clients
-  const token = await getOrDeployToken({ ...clients, args: [deployer.address], force: true });
+  // the SAME getOrDeploy you run in production — spread `clients` and it deploys to memory
+  const token = await getOrDeployToken({ ...clients, args: [deployer.address] });
 
   await token.write.transfer([bob.address, 1000n]);
   expect(await token.read.balanceOf([bob.address])).toBe(1000n);
 });
 ```
 
-Same `getOrDeployToken` you ship — here it just targets a throwaway in-process chain (`force: true` = a clean deploy each run). Want a real node? Build the clients against a local anvil or a fork; nothing else changes.
+Same `getOrDeployToken` you ship — here it targets a throwaway in-process chain and an in-memory store, so each run is clean and nothing is written to `deployments/`. Multiple parties? `clients.walletClientFor(account)`. Want a real node instead? Build the clients against a local anvil or a fork; nothing else changes.
 
 ## Packages
 
@@ -137,6 +130,7 @@ Same `getOrDeployToken` you ship — here it just targets a throwaway in-process
 | [`@deployoor/etherscan`](packages/deployoor-etherscan) | Verify on Etherscan V2 (one key, all chains; also Blockscout/Routescan).                                                                                                    |
 | [`@deployoor/sourcify`](packages/deployoor-sourcify)   | Verify on Sourcify (v2, keyless).                                                                                                                                           |
 | [`@deployoor/slack`](packages/deployoor-slack)         | Notify a Slack channel on each deploy.                                                                                                                                      |
+| [`@deployoor/testing`](packages/deployoor-testing)     | `createTestClients()` — an in-memory EVM (tevm) as viem clients + an in-memory store, to test deploys with no local node.                                                   |
 
 Plugins are deploy-lifecycle hooks; each ships as its own package and depends only on `deployoor/plugin`.
 
@@ -167,7 +161,7 @@ Early. The deploy core, the plugin model, and the wagmi bridge are stabilizing. 
 | Deploy | Detect bytecode changes and redeploy (opt-in)                          | Planned     |
 | Deploy | Proxies & diamonds (upgradeable contracts)                             | Planned     |
 | Deploy | Deterministic addresses (CREATE2 / CREATE3)                            | Exploring   |
-| Stores | Pluggable stores (filesystem, in-memory, HTTP) + browser deploys       | Planned     |
+| Stores | Pluggable `StoreAdapter` + in-memory store **shipped**; HTTP + browser | In progress |
 | Verify | More explorers (Blockscout-native, OKLink, custom endpoints)           | Exploring   |
 | DX     | `--watch`, `deployoor list` / `status`, import existing deployments    | Considering |
 | AI     | Upgrade-safety diff, deployments MCP server (opt-in, separate package) | Considering |

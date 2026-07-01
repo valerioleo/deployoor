@@ -1,6 +1,6 @@
 # deployoor
 
-> A dead-simple, modular and extensible tool to deploy smart contracts and use them as filly-typed viem objects. Works out-of-the-box with Hardhat and Foundry.
+> A dead-simple, modular and extensible tool to deploy smart contracts and use them as fully-typed viem objects. Works out-of-the-box with Hardhat and Foundry.
 
 Run `npx deployoor generate`, write a deploy script, run it like a standalone node file (eg `tsx scripts/deploy.ts`). You get a single source of truth for every address, ABI, and chain — and contracts you can import as fully-typed viem objects, with no copied addresses, no stale ABIs, and no provider wiring.
 
@@ -171,6 +171,18 @@ const usdc = await register({ ...clients, name: "USDC", address: "0x…", abi: u
 
 // reset only forgets local records, so it needs just a public client (no signer):
 await reset({ publicClient, name: "Token" }); // one record; omit `name` to forget all — next getOrDeploy redeploys
+```
+
+## Testing
+
+The generated deployers only need viem clients, so tests deploy exactly like production — against an in-memory EVM, no node. [`@deployoor/testing`](../deployoor-testing) gives you `createTestClients()` (tevm as viem clients + an in-memory store, so deploys never touch disk):
+
+```ts
+import { createTestClients } from "@deployoor/testing";
+import { getOrDeployToken } from "../deployers";
+
+const clients = await createTestClients();
+const token = await getOrDeployToken({ ...clients, args: [owner] }); // deploys to memory
 ```
 
 ## Plugins: everything is a hook

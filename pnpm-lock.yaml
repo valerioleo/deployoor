@@ -209,6 +209,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0
+      deployoor:
+        specifier: workspace:*
+        version: link:../deployoor
       tsdown:
         specifier: ^0.22.3
         version: 0.22.3(tsx@4.22.4)(typescript@5.9.3)(unrun@0.3.1)

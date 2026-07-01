@@ -1,6 +1,6 @@
 # @deployoor/testing
 
-> Test your deployoor deploys against a real in-memory EVM — no local node.
+> Test your deployoor deploys against a real in-memory EVM (via tevm) — no local node.
 
 `createTestClients()` boots [tevm](https://tevm.sh) in-process and hands you ordinary viem wallet/public clients. Pass them straight to a generated deployer and your test deploys real contracts to a real EVM — no `hardhat node`, no anvil, no RPC. The tevm version is pinned by this package, so you never fight a version mismatch.
 
@@ -13,14 +13,15 @@ import { createTestClients } from "@deployoor/testing";
 import { getOrDeployToken } from "../deployers";
 
 it("deploys the token", async () => {
-  const { walletClient, publicClient } = await createTestClients();
-  const token = await getOrDeployToken({ walletClient, publicClient, args: [owner] });
+  const clients = await createTestClients();
+  // spread `clients` so the deploy uses the in-memory store — nothing hits disk
+  const token = await getOrDeployToken({ ...clients, args: [owner] });
   // it's a live contract on an in-memory chain — read/write against it
   expect(token.address).toMatch(/^0x/);
 });
 ```
 
-`createTestClients()` returns `{ account, accounts, chain, walletClient, publicClient, walletClientFor }` — `account` is the first prefunded account (bound to `walletClient`), and `chain.name` is what keys the `deployments/` records deployoor writes.
+`createTestClients()` returns `{ account, accounts, chain, walletClient, publicClient, walletClientFor, store }`. Spreading it into a deployer passes the **in-memory `store`**, so deploys never touch disk and vanish when the test ends — no stale `deployments/` files, no cross-run reuse. `account` is the first prefunded account (bound to `walletClient`).
 
 ### Multiple accounts
 

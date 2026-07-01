@@ -9,8 +9,10 @@
  *     plus the project-level `register` / `reset` (from `defineRegister` / `defineReset`)
  *   - domain types + tagged errors
  *
- * `createDeployer`, the store, and the Effect engine are internal — generated
- * deployers use them; users never wire them by hand. Public API is Promise-only.
+ * `createDeployer` and the Effect engine are internal — generated deployers use
+ * them; users never wire them by hand. The store is a pluggable `StoreAdapter`
+ * (`fsStore` by default; inject your own via a deployer's `store` option, e.g. an
+ * in-memory store in tests). Public API is Promise-only.
  */
 
 // Config
@@ -28,6 +30,11 @@ export type { DeployPlugin, DeployedContext, PluginDeps, PluginOverrides, Awaita
 // Domain types
 export type { TypedArtifact } from "./schemas";
 export { Address, Hex, AbiSchema, Artifact, ContractMetadata, DeploymentRecord, Libraries } from "./schemas";
+
+// Store — the pluggable persistence adapter. Inject a custom `StoreAdapter` via a
+// deployer's `store` call option (e.g. `memoryStore()` in tests); `fsStore` is the default.
+export { fsStore, memoryStore } from "./store";
+export type { StoreAdapter } from "./store";
 
 // Tagged errors (users match `err._tag` on a rejected promise)
 export {
